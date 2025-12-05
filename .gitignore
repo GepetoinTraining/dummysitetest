@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 ../../desktop
+
+.vercel
+.env*.local
