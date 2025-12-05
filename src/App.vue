@@ -5,7 +5,7 @@ import axios from 'axios'
 const rawHtml = ref('');
 // Force this to match your Vercel deployment URL
 const BUS_URL = 'https://dummysitetest-gepetointrainings-projects.vercel.app/api/bus'; 
-const POLL_RATE = 1000;
+const POLL_RATE = 60;
 
 const fetchSignal = async () => {
   try {
