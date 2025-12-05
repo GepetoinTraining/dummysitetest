@@ -4,7 +4,11 @@ import axios from 'axios'
 
 const rawHtml = ref('');
 // Force this to match your Vercel deployment URL
-const BUS_URL = 'https://dummysitetest-gepetointrainings-projects.vercel.app/api/bus'; 
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+const BUS_URL = isLocal 
+    ? 'https://dummysitetest.vercel.app/api/bus' // Absolute URL for Local Dev
+    : '/api/bus';                                // Relative URL for Production
 const POLL_RATE = 60;
 
 const fetchSignal = async () => {
