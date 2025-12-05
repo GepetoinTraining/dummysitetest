@@ -1,47 +1,65 @@
-import { Redis } from '@upstash/redis'
+import { Redis } from '@upstash/redis';
 
-const redis = Redis.fromEnv()
+const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
-  // --- AUTHENTICATION (Optional but recommended) ---
-  // const auth = req.headers['authorization']
-  // const isLocalNode = auth === `Bearer ${process.env.MANIFOLD_SECRET}`
-
-  // --- GET REQUESTS (Reading State) ---
+  // --- GET: The View (Browser Request) ---
   if (req.method === 'GET') {
-    const { mode } = req.query
-
-    // Mode A: The Local Node asking for work (Tasks)
-    if (mode === 'task') {
-      const task = await redis.lpop('manifold_events')
-      return res.status(200).json({ task: task ? JSON.parse(task) : null })
-    }
-
-    // Mode B: The Browser asking for the View (HTML)
+    const { mode, path } = req.query;
+    
+    // 1. Browser asking for a specific page (e.g., /students)
     if (mode === 'view') {
-      const html = await redis.get('manifold_snapshot')
-      return res.status(200).json({ html: html || '' })
+      const currentPath = path || '/';
+      // Try to get the cached reality frame
+      const html = await redis.get(`page:${currentPath}`);
+      
+      // If the frame is missing (Void Sector), signal the Core to construct it
+      if (!html) {
+        // Check if a request is already pending to avoid spamming the queue
+        const pending = await redis.get(`pending:${currentPath}`);
+        if (!pending) {
+            await redis.rpush('manifold_events', JSON.stringify({ 
+                type: 'NAVIGATE', 
+                path: currentPath, 
+                timestamp: Date.now() 
+            }));
+            await redis.setex(`pending:${currentPath}`, 10, 'true'); // Debounce for 10s
+        }
+        
+        return res.status(200).json({ 
+            html: `
+            <div style="height:100vh; display:flex; align-items:center; justify-content:center; background:#0f172a; color:#94a3b8; font-family:monospace;">
+                <div style="text-align:center;">
+                    <h1>constructing reality...</h1>
+                    <p>signal dispatched to core.</p>
+                </div>
+            </div>
+            <script>setTimeout(() => window.location.reload(), 2000)</script>
+            ` 
+        });
+      }
+      return res.status(200).json({ html });
+    }
+
+    // 2. Core asking for Tasks (The Heartbeat)
+    if (mode === 'task') {
+      const task = await redis.lpop('manifold_events');
+      return res.status(200).json({ task: task ? JSON.parse(task) : null });
     }
   }
 
-  // --- POST REQUESTS (Writing State) ---
+  // --- POST: The Core (Writing Reality) ---
   if (req.method === 'POST') {
-    const { type, html, action, payload } = req.body
+    const { type, html, path } = req.body;
 
-    // Type A: Local Node sending a new Snapshot
+    // Core pushing a constructed page
     if (type === 'SNAPSHOT') {
-      if (!html) return res.status(400).json({ error: 'No HTML provided' })
-      await redis.set('manifold_snapshot', html)
-      return res.status(200).json({ status: 'Updated' })
-    }
-
-    // Type B: Browser sending a User Event
-    if (type === 'EVENT') {
-      const eventData = JSON.stringify({ action, payload, timestamp: Date.now() })
-      await redis.rpush('manifold_events', eventData)
-      return res.status(200).json({ status: 'Queued' })
+      const targetPath = path || '/';
+      await redis.set(`page:${targetPath}`, html);
+      await redis.del(`pending:${targetPath}`); // Clear the pending flag
+      return res.status(200).json({ status: 'Reality Stabilized' });
     }
   }
-
-  return res.status(405).json({ error: 'Method Not Allowed' })
+  
+  return res.status(405).json({ error: 'Method Not Allowed' });
 }

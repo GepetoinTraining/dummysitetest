@@ -2,26 +2,31 @@
 import { ref, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 
-const BUS_URL = '/api/bus'
-const POLL_RATE = 200 // ms
+const rawHtml = ref('');
+// Force this to match your Vercel deployment URL
+const BUS_URL = 'https://dummysitetest.vercel.app/api/bus'; 
+const POLL_RATE = 1000;
 
-const rawHtml = ref('<div style="color:gray; padding:20px; font-family:monospace;">Connecting to Manifold...</div>')
-
-// --- 1. THE PULSE (Receiver) ---
 const fetchSignal = async () => {
   try {
-    // Mode 'view' gets the latest HTML snapshot
-    const { data } = await axios.get(`${BUS_URL}?mode=view`)
+    // Law of Relativity: The Observer dictates the render
+    const currentPath = window.location.pathname; 
+    const { data } = await axios.get(`${BUS_URL}?mode=view&path=${currentPath}`);
     
-    // Only update DOM if content actually changed (Simple Diff)
     if (data.html && data.html !== rawHtml.value) {
-      rawHtml.value = data.html
+      rawHtml.value = data.html;
+      // Re-inject scripts if necessary, though Vue v-html can be tricky with <script> tags
+      // You might need a helper to execute the physics scripts inside the HTML
     }
   } catch (e) {
-    // Silent fail to maintain immersion
+    console.warn("Signal Lost:", e.message);
   }
-  setTimeout(fetchSignal, POLL_RATE)
-}
+  setTimeout(fetchSignal, POLL_RATE);
+};
+
+onMounted(() => {
+    fetchSignal();
+});
 
 // --- 2. THE NERVOUS SYSTEM (Event Delegation) ---
 const handleGlobalClick = (e) => {
