@@ -38,6 +38,59 @@ onMounted(() => {
     fetchSignal();
 });
 
+// ⚡ 1. THE DEFIBRILLATOR (Revive Scripts)
+const reviveScripts = () => {
+  const container = document.querySelector('.manifold-viewport');
+  if (!container) return;
+
+  // Find all scripts that came from the backend
+  const scripts = container.querySelectorAll('script');
+  
+  scripts.forEach(oldScript => {
+    const newScript = document.createElement('script');
+    
+    // Clone attributes (src, id, type)
+    Array.from(oldScript.attributes).forEach(attr => {
+      newScript.setAttribute(attr.name, attr.value);
+    });
+    
+    // Clone content
+    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+    
+    // Replace (This triggers execution)
+    oldScript.parentNode.replaceChild(newScript, oldScript);
+  });
+  
+  console.log(`[Pulse] Revived ${scripts.length} physics nodes.`);
+};
+
+// ⚡ 2. THE HEARTBEAT
+const beat = async () => {
+  // ... (Keep your existing Vital Signs / Rate logic here) ...
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const path = params.get('q') || 'dashboard';
+    
+    const { data } = await axios.get(`${BUS_URL}?mode=view&path=${path}`);
+    
+    // 🟢 THE FIX IS HERE
+    if (data.html && data.html !== rawHtml.value) {
+      rawHtml.value = data.html;
+      
+      // 🛑 WAIT for the DOM to actually update
+      await nextTick(); 
+      
+      // ⚡ NOW shock the system
+      reviveScripts();
+    }
+  } catch (e) {
+    console.warn("Pulse missed:", e.message);
+  }
+
+  pollTimer = setTimeout(beat, currentRate);
+};
+
 // --- 2. THE NERVOUS SYSTEM (Event Delegation) ---
 const handleGlobalClick = (e) => {
   // Check if we clicked something with data-manifold-action
