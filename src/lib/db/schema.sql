@@ -429,3 +429,48 @@ CREATE TABLE IF NOT EXISTS function_registry (
 
 CREATE INDEX IF NOT EXISTS idx_registry_category ON function_registry(category);
 CREATE INDEX IF NOT EXISTS idx_registry_usage ON function_registry(usage_count DESC);
+
+-- -----------------------------------------------------------
+-- UI PRIMITIVES (CSS objects in the DB)
+-- -----------------------------------------------------------
+
+-- Every UI element is a row. Mantine renders whatever this says.
+-- Human and AI both write to this table.
+-- The workspace is a query result, not a coded layout.
+
+CREATE TABLE IF NOT EXISTS ui_primitives (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    parent_id TEXT REFERENCES ui_primitives(id) ON DELETE CASCADE,  -- tree structure
+    component TEXT NOT NULL,       -- Mantine component: 'Stack', 'Group', 'Paper', 'Tabs', 'Button', 'Text', 'Badge', 'Canvas3D'
+    slot TEXT NOT NULL,            -- where in parent: 'children', 'header', 'navbar', 'main'
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    props TEXT NOT NULL DEFAULT '{}',       -- JSON: component props
+    style TEXT NOT NULL DEFAULT '{}',       -- JSON: CSS overrides (golden ratio is default)
+    data_source TEXT,              -- SQL query or API endpoint this primitive reads from
+    on_action TEXT,                -- JSON: what happens on click/change → API call or DB write
+    visible INTEGER NOT NULL DEFAULT 1,
+    scope TEXT NOT NULL DEFAULT 'global',   -- 'global' or discipline_id — which tab this belongs to
+    created_by TEXT NOT NULL DEFAULT 'system',  -- 'system', 'user', 'ai'
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_primitives_user ON ui_primitives(user_id, scope);
+CREATE INDEX IF NOT EXISTS idx_primitives_parent ON ui_primitives(parent_id, sort_order);
+
+-- -----------------------------------------------------------
+-- VIEWS (named layouts — each row is a screen)
+-- -----------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS ui_views (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,             -- 'dashboard', 'session', 'memory_web', 'planner'
+    root_primitive_id TEXT NOT NULL REFERENCES ui_primitives(id) ON DELETE CASCADE,
+    is_active INTEGER NOT NULL DEFAULT 0,
+    theme TEXT NOT NULL DEFAULT 'auto',  -- 'light', 'dark', 'auto'
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE(user_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_views_active ON ui_views(user_id, is_active);

@@ -642,6 +642,61 @@ const BUILTIN_FUNCTIONS: Omit<RegistryEntry, "id" | "usage_count" | "last_used_a
     ai_comment: "",
   },
 
+  // --- UI Primitives ---
+  {
+    name: "create_ui_element",
+    category: "ui",
+    location: "src/lib/engine/primitives.ts",
+    description: "Create a new UI element in the workspace. Component can be any Mantine primitive or Canvas3D for 3D.",
+    params_schema: {
+      type: "object",
+      properties: {
+        parent_id: { type: "string", description: "Parent element ID" },
+        component: { type: "string", description: "Mantine component: Stack, Group, Paper, Text, Badge, Button, TextInput, Progress, Tabs, Canvas3D" },
+        props: { type: "object", description: "Component props" },
+        style: { type: "object", description: "CSS overrides" },
+        data_source: { type: "string", description: "API endpoint or SQL query for dynamic data" },
+        scope: { type: "string", description: "global or discipline_id" },
+      },
+      required: ["component"],
+    },
+    returns: "string (element id)",
+    ai_comment: "",
+  },
+  {
+    name: "update_ui_element",
+    category: "ui",
+    location: "src/lib/engine/primitives.ts",
+    description: "Update an existing UI element's props, style, or visibility",
+    params_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        props: { type: "object" },
+        style: { type: "object" },
+        visible: { type: "boolean" },
+      },
+      required: ["id"],
+    },
+    returns: "void",
+    ai_comment: "",
+  },
+  {
+    name: "delete_ui_element",
+    category: "ui",
+    location: "src/lib/engine/primitives.ts",
+    description: "Remove a UI element and all its children",
+    params_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+      },
+      required: ["id"],
+    },
+    returns: "void",
+    ai_comment: "",
+  },
+
   // --- Grep + Scratch Pad ---
   {
     name: "grep",
