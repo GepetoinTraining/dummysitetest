@@ -5,11 +5,14 @@ import "@mantine/dates/styles.css";
 import { ColorSchemeScript, MantineProvider, createTheme } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 
+import { mantineSpacing } from "@/lib/utils/golden";
+
 const theme = createTheme({
   primaryColor: "indigo",
   fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif",
   headings: { fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif" },
   defaultRadius: "md",
+  spacing: mantineSpacing,
 });
 
 export const metadata = {
