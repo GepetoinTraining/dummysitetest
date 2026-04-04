@@ -12,3 +12,4 @@ export * from "./dict";
 export * from "./simulation";
 export * from "./registry";
 export * from "./context";
+export * from "./autopilot";
