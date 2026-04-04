@@ -355,7 +355,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     decay_beta REAL NOT NULL DEFAULT 0.5,
     learning_rate REAL NOT NULL DEFAULT 0.3,
     daily_push_enabled INTEGER NOT NULL DEFAULT 1,
-    daily_push_time TEXT NOT NULL DEFAULT '09:00',
+    daily_push_on_open INTEGER NOT NULL DEFAULT 1,  -- triggers when student opens app, not at clock time
     daily_push_max INTEGER NOT NULL DEFAULT 5
 );
 

@@ -155,10 +155,11 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
     id TEXT PRIMARY KEY,
     account_id TEXT NOT NULL REFERENCES accounts(id),
     table_name TEXT NOT NULL,       -- which local table to sync
-    sync_mode TEXT NOT NULL CHECK (sync_mode IN ('none', 'aggregate', 'full')),
+    sync_mode TEXT NOT NULL CHECK (sync_mode IN ('none', 'aggregate')),
     -- none: stays local (default for everything)
     -- aggregate: server gets stats, not raw data (e.g., grade averages, tag counts)
-    -- full: server gets the rows (e.g., for teacher view opt-in)
+    -- Knowledge tables (memory_nodes, memory_edges, chat_messages, context_ledger)
+    -- can ONLY be 'none'. Knowledge belongs to the student. Article VII.
     last_synced_at TIMESTAMP,
     UNIQUE(account_id, table_name)
 );
