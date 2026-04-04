@@ -20,7 +20,10 @@
     "@mantine/notifications": "^8.1.0",
     "@tabler/icons-react": "^3.31.0",
     "better-sqlite3": "^11.9.0",
-    "mermaid": "^11.6.0"
+    "mermaid": "^11.6.0",
+    "three": "^0.173.0",
+    "@react-three/fiber": "^9.1.0",
+    "@react-three/drei": "^10.0.0"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
