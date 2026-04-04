@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:init": "tsx src/lib/db/init.ts",
-    "db:seed": "tsx src/lib/mock/seed.ts"
+    "db:seed": "tsx src/lib/mock/seed.ts",
+    "cron": "tsx src/lib/engine/cron.ts"
   },
   "dependencies": {
     "next": "^15.3.0",

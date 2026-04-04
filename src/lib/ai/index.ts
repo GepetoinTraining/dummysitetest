@@ -1,6 +1,7 @@
 export { OllamaProvider } from "./ollama";
 export { ExternalProvider } from "./external";
 export { AIRouter } from "./router";
+export { execute } from "./executor";
 export { storeApiKey, retrieveApiKey, hasApiKey, deleteApiKey } from "./keys";
 export type {
   AIProvider,
