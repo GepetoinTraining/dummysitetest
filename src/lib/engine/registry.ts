@@ -608,6 +608,82 @@ const BUILTIN_FUNCTIONS: Omit<RegistryEntry, "id" | "usage_count" | "last_used_a
     ai_comment: "Quick overview of what the conversation has covered.",
   },
 
+  // --- Grep + Scratch Pad ---
+  {
+    name: "grep",
+    category: "context",
+    location: "src/lib/engine/autopilot.ts",
+    description: "Search across memory, ledger, chat history, and dictionary. Returns matching snippets.",
+    params_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search term" },
+        sources: {
+          type: "array",
+          items: { type: "string", enum: ["memory", "ledger", "chat", "dict"] },
+          description: "Which sources to search (default: all)",
+        },
+        limit: { type: "number", description: "Max results (default 10)" },
+      },
+      required: ["query"],
+    },
+    returns: "GrepResult[]",
+    ai_comment: "",
+  },
+  {
+    name: "pad_write",
+    category: "context",
+    location: "src/lib/engine/autopilot.ts",
+    description: "Write content to the scratch pad. This persists in your context for the session.",
+    params_schema: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "Content to add to the pad" },
+      },
+      required: ["content"],
+    },
+    returns: "void",
+    ai_comment: "",
+  },
+  {
+    name: "pad_read",
+    category: "context",
+    location: "src/lib/engine/autopilot.ts",
+    description: "Read the current scratch pad contents.",
+    params_schema: {
+      type: "object",
+      properties: {},
+    },
+    returns: "string",
+    ai_comment: "",
+  },
+  {
+    name: "pad_clear",
+    category: "context",
+    location: "src/lib/engine/autopilot.ts",
+    description: "Clear the scratch pad or a specific entry by index.",
+    params_schema: {
+      type: "object",
+      properties: {
+        index: { type: "number", description: "Specific entry to remove (omit to clear all)" },
+      },
+    },
+    returns: "void",
+    ai_comment: "",
+  },
+  {
+    name: "pad_size",
+    category: "context",
+    location: "src/lib/engine/autopilot.ts",
+    description: "Get the current scratch pad size in characters.",
+    params_schema: {
+      type: "object",
+      properties: {},
+    },
+    returns: "number",
+    ai_comment: "",
+  },
+
   // --- Daily Push ---
   {
     name: "get_slipping_knowledge",
