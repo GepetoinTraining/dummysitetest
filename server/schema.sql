@@ -144,6 +144,42 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
 -- Everything defaults to none. Student explicitly opts in.
 
 -- -----------------------------------------------------------
+-- TEACHER MANIFOLD (pre-built from student hints)
+-- -----------------------------------------------------------
+
+-- Students are always hinting at their teacher through metadata.
+-- The server collects these hints into a manifold.
+-- When the teacher finally connects, we hand them their data
+-- and delete it from our side. Their data becomes sovereign.
+
+CREATE TABLE IF NOT EXISTS teacher_manifold (
+    id TEXT PRIMARY KEY,
+    teacher_name_normalized TEXT NOT NULL,  -- lowercase, trimmed, for matching
+    institution_id TEXT REFERENCES institutions(id),
+    discipline_hint TEXT,          -- most common discipline tagged by students
+    -- Aggregated from student metadata (anonymous):
+    student_count INTEGER NOT NULL DEFAULT 0,
+    reported_metadata TEXT NOT NULL DEFAULT '{}',  -- JSON: merged from all student professor.metadata blobs
+    -- {
+    --   "teaching_style": ["lecture-heavy", "lecture-heavy", "lots of examples"],  ← raw reports
+    --   "personality": ["strict but fair", "strict", "tough but good"],
+    --   "grading_tendency": ["harsh on proofs", "hard grader"],
+    --   "exam_style": ["mixed theory and practice"],
+    --   ... consensus emerges from frequency
+    -- }
+    grade_distribution TEXT NOT NULL DEFAULT '{}',  -- JSON: { avg, median, spread } across reporting students
+    common_struggles TEXT NOT NULL DEFAULT '[]',     -- JSON: tags most students have at T1-T2 in this teacher's discipline
+    claimed_by TEXT REFERENCES accounts(id),         -- NULL until teacher signs up
+    claimed_at TIMESTAMP,
+    deleted_after_claim INTEGER NOT NULL DEFAULT 0,  -- 1 = data handed off, server copy purged
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_manifold_name ON teacher_manifold(teacher_name_normalized);
+CREATE INDEX IF NOT EXISTS idx_manifold_unclaimed ON teacher_manifold(claimed_by) WHERE claimed_by IS NULL;
+
+-- -----------------------------------------------------------
 -- TEACHER AGGREGATE VIEW (only what students shared)
 -- -----------------------------------------------------------
 

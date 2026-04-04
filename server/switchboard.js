@@ -143,6 +143,94 @@ function gradeToAgeBracket(gradeLevel) {
   return '18_plus';
 }
 
+// Teacher manifold — students build the teacher's profile
+// before the teacher knows the platform exists
+
+async function contributeToManifold(db, teacherName, institutionId, metadata, gradeValue, struggles) {
+  const normalized = teacherName.toLowerCase().trim().replace(/\s+/g, ' ');
+
+  // Find or create manifold
+  let manifold = await db.query(
+    'SELECT * FROM teacher_manifold WHERE teacher_name_normalized = $1 AND (institution_id = $2 OR institution_id IS NULL)',
+    [normalized, institutionId]
+  );
+
+  if (manifold.rows.length === 0) {
+    await db.query(
+      `INSERT INTO teacher_manifold (id, teacher_name_normalized, institution_id, student_count, created_at, updated_at)
+       VALUES ($1, $2, $3, 0, NOW(), NOW())`,
+      [crypto.randomUUID(), normalized, institutionId]
+    );
+    manifold = await db.query(
+      'SELECT * FROM teacher_manifold WHERE teacher_name_normalized = $1',
+      [normalized]
+    );
+  }
+
+  const m = manifold.rows[0];
+  const existing = JSON.parse(m.reported_metadata || '{}');
+
+  // Merge student's metadata into the manifold (append, don't overwrite)
+  for (const [key, val] of Object.entries(metadata)) {
+    if (!val) continue;
+    if (!existing[key]) existing[key] = [];
+    existing[key].push(val);
+  }
+
+  // Update
+  await db.query(
+    `UPDATE teacher_manifold
+     SET reported_metadata = $1,
+         student_count = student_count + 1,
+         updated_at = NOW()
+     WHERE id = $2`,
+    [JSON.stringify(existing), m.id]
+  );
+}
+
+// Teacher claims their manifold — gets data, server deletes
+async function claimManifold(db, teacherAccountId, teacherName, institutionId) {
+  const normalized = teacherName.toLowerCase().trim().replace(/\s+/g, ' ');
+
+  const manifold = await db.query(
+    `SELECT * FROM teacher_manifold
+     WHERE teacher_name_normalized = $1
+       AND claimed_by IS NULL
+       AND (institution_id = $2 OR institution_id IS NULL)`,
+    [normalized, institutionId]
+  );
+
+  if (manifold.rows.length === 0) return null;
+
+  const m = manifold.rows[0];
+
+  // Hand off the data
+  const data = {
+    student_count: m.student_count,
+    reported_metadata: JSON.parse(m.reported_metadata),
+    grade_distribution: JSON.parse(m.grade_distribution),
+    common_struggles: JSON.parse(m.common_struggles),
+  };
+
+  // Mark as claimed
+  await db.query(
+    `UPDATE teacher_manifold
+     SET claimed_by = $1, claimed_at = NOW(), deleted_after_claim = 1
+     WHERE id = $2`,
+    [teacherAccountId, m.id]
+  );
+
+  // Purge the detailed data — teacher now has it locally
+  await db.query(
+    `UPDATE teacher_manifold
+     SET reported_metadata = '{}', grade_distribution = '{}', common_struggles = '[]'
+     WHERE id = $1`,
+    [m.id]
+  );
+
+  return data;
+}
+
 module.exports = {
   handleConnection,
   checkDiffs,
@@ -150,5 +238,7 @@ module.exports = {
   canCommunicate,
   deliver,
   gradeToAgeBracket,
+  contributeToManifold,
+  claimManifold,
   POLL_INTERVAL,
 };
