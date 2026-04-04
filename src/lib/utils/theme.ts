@@ -4,6 +4,14 @@
 // Alpine precision. Natural warmth. Nothing decorates.
 // Wood grain, stone, linen, moss, copper.
 // The UI reveals structure, doesn't add to it.
+//
+// ACCESSIBILITY CONSTRAINTS:
+//   - Colorblind safe: no red/green distinction carries meaning
+//     (wood/stone/copper differentiate by luminance, not hue)
+//   - Autism friendly: no bright/saturated colors, no high contrast
+//     flashes, muted palette, predictable transitions
+//   - All color meaning is doubled by shape/texture/position
+//   - Sound is warm, low-frequency dominant, no sharp tones
 // ============================================================
 
 import { createTheme, MantineColorsTuple } from "@mantine/core";
