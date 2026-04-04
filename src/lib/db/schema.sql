@@ -343,3 +343,30 @@ CREATE TABLE IF NOT EXISTS graph_blobs (
 
 CREATE INDEX IF NOT EXISTS idx_blobs_user ON graph_blobs(user_id);
 CREATE INDEX IF NOT EXISTS idx_blobs_discipline ON graph_blobs(user_id, discipline_id);
+
+-- -----------------------------------------------------------
+-- FUNCTION CALL REGISTRY (AI's tool index)
+-- -----------------------------------------------------------
+
+-- Every function the AI can call is registered here.
+-- The AI queries this table to find available tools, then
+-- issues Gemma function calls against them.
+-- A single .MD index is generated from this for the AI's
+-- context window.
+
+CREATE TABLE IF NOT EXISTS function_registry (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,        -- function name (e.g., 'create_memory_node')
+    category TEXT NOT NULL,           -- 'memory', 'session', 'workspace', 'planner', 'notification', 'graph', 'dict', 'assessment'
+    location TEXT NOT NULL,           -- file path: 'src/lib/engine/memory.ts'
+    description TEXT NOT NULL,        -- what it does (one line)
+    params_schema TEXT NOT NULL,      -- JSON schema for parameters
+    returns TEXT NOT NULL DEFAULT '', -- what it returns
+    usage_count INTEGER NOT NULL DEFAULT 0,
+    last_used_at INTEGER,
+    ai_comment TEXT NOT NULL DEFAULT '', -- AI's own note about when/why to use this
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_registry_category ON function_registry(category);
+CREATE INDEX IF NOT EXISTS idx_registry_usage ON function_registry(usage_count DESC);

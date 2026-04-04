@@ -10,3 +10,4 @@ export * from "./mermaid";
 export * from "./similarity";
 export * from "./dict";
 export * from "./simulation";
+export * from "./registry";
