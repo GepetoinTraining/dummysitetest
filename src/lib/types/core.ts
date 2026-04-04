@@ -215,6 +215,102 @@ export interface SkillFile {
   mermaid_source: string; // the raw mermaid graph
 }
 
+// --- Dictionary (reference layer for AI object construction) ---
+
+export type DictSource = "system" | "user" | "ai";
+
+export interface DictEntry {
+  id: string;
+  domain: string;       // 'chemistry', 'biology', etc. or discipline_id
+  term: string;         // 'carbon', 'mitochondria', 'world_war_2'
+  category: string;     // 'element', 'organelle', 'event', etc.
+  properties: NodeProperties;
+  edge_rules: EdgeRule[];
+  skin_overrides: SkinOverrides;
+  source: DictSource;
+  created_at: number;
+}
+
+export interface NodeProperties {
+  mass: number;
+  charge: number;
+  label: string;
+  [key: string]: unknown; // domain-specific: atomic_number, date, coordinates...
+}
+
+export interface EdgeRule {
+  target_category: string;   // what categories this can connect to
+  relation: string;          // bond, pathway, causation, proof...
+  max_connections: number;   // carbon: max 4 bonds
+  stiffness: number;         // spring constant for this edge type
+  rest_length: number;       // natural length
+  label_template: string;    // e.g., "single bond", "caused by"
+}
+
+export interface SkinOverrides {
+  color?: string;
+  shape?: "sphere" | "cube" | "cylinder" | "tetrahedron" | "custom";
+  scale?: number;
+  opacity?: number;
+  glow?: boolean;
+  icon?: string;
+}
+
+// --- Graph Blobs (3D workspace state) ---
+
+export interface GraphBlob {
+  id: string;
+  user_id: string;
+  discipline_id: string | null;
+  name: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  physics: PhysicsConfig;
+  camera: CameraState;
+  skin: string;
+  created_at: number;
+  modified_at: number;
+}
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  dict_term: string | null;     // links back to dict_entries for reconstruction
+  position: [number, number, number];
+  velocity: [number, number, number];
+  mass: number;
+  charge: number;
+  pinned: boolean;
+  tier?: number;
+  skin: string;
+  data: Record<string, unknown>;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+  relation: string;
+  stiffness: number;
+  rest_length: number;
+  data: Record<string, unknown>;
+}
+
+export interface PhysicsConfig {
+  gravity: [number, number, number];
+  damping: number;
+  coulomb_k: number;
+  time_scale: number;
+  bounds: [number, number, number] | null;
+}
+
+export interface CameraState {
+  position: [number, number, number];
+  target: [number, number, number];
+  fov: number;
+}
+
 // --- Lattice (computed, not stored) ---
 
 export interface LatticePosition {

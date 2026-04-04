@@ -5,6 +5,8 @@
 // ============================================================
 
 import { initDb, getDb, closeDb } from "@/lib/db/connection";
+import { generateId } from "@/lib/utils/id";
+import { ALL_SYSTEM_DICT } from "./dict-seed";
 import {
   MOCK_USERS,
   MOCK_DISCIPLINES,
@@ -87,6 +89,11 @@ export function seedDatabase(): void {
     // Skill Files
     const insSkill = db.prepare("INSERT OR IGNORE INTO skill_files (id, filename, name, description, dimension_mask, difficulty_min, difficulty_max, mermaid_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     for (const s of MOCK_SKILL_FILES) insSkill.run(s.id, s.filename, s.name, s.description, s.dimension_mask, s.difficulty_min, s.difficulty_max, s.mermaid_source);
+
+    // Dictionary — system entries
+    const insDict = db.prepare("INSERT OR IGNORE INTO dict_entries (id, domain, term, category, properties, edge_rules, skin_overrides, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    const now = Math.floor(Date.now() / 1000);
+    for (const d of ALL_SYSTEM_DICT) insDict.run(generateId(), d.domain, d.term, d.category, JSON.stringify(d.properties), JSON.stringify(d.edge_rules), JSON.stringify(d.skin_overrides), d.source, now);
   });
 
   tx();

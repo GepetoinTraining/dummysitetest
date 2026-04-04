@@ -299,3 +299,47 @@ CREATE TABLE IF NOT EXISTS user_settings (
     daily_push_time TEXT NOT NULL DEFAULT '09:00',
     daily_push_max INTEGER NOT NULL DEFAULT 5
 );
+
+-- -----------------------------------------------------------
+-- DICTIONARY (reference layer for AI object construction)
+-- -----------------------------------------------------------
+
+-- The AI looks up entries here when building graph objects.
+-- Each entry defines how a term maps to node/edge properties.
+-- Entries can be system-provided (domain = 'chemistry', etc.)
+-- or user-created (domain = discipline_id).
+
+CREATE TABLE IF NOT EXISTS dict_entries (
+    id TEXT PRIMARY KEY,
+    domain TEXT NOT NULL,          -- 'chemistry', 'biology', 'physics', 'history', 'geography', 'math', 'cs', or a discipline_id for custom
+    term TEXT NOT NULL,            -- lookup key: 'carbon', 'mitochondria', 'world_war_2'
+    category TEXT NOT NULL,        -- 'element', 'organelle', 'event', 'particle', 'theorem', etc.
+    properties TEXT NOT NULL,      -- JSON blob of typed properties for node construction
+    edge_rules TEXT NOT NULL DEFAULT '[]',  -- JSON array: what this can connect to and how
+    skin_overrides TEXT NOT NULL DEFAULT '{}', -- JSON: visual overrides (color, shape, scale)
+    source TEXT NOT NULL DEFAULT 'system',    -- 'system' = shipped, 'user' = student-created, 'ai' = AI-generated
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE(domain, term)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dict_domain ON dict_entries(domain);
+CREATE INDEX IF NOT EXISTS idx_dict_term ON dict_entries(term);
+CREATE INDEX IF NOT EXISTS idx_dict_category ON dict_entries(domain, category);
+
+-- -----------------------------------------------------------
+-- GRAPH BLOBS (serialized 3D workspaces)
+-- -----------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS graph_blobs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    discipline_id TEXT REFERENCES disciplines(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    blob TEXT NOT NULL,            -- JSON serialized GraphBlob
+    is_memory_web INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    modified_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_blobs_user ON graph_blobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_blobs_discipline ON graph_blobs(user_id, discipline_id);
