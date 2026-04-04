@@ -608,6 +608,40 @@ const BUILTIN_FUNCTIONS: Omit<RegistryEntry, "id" | "usage_count" | "last_used_a
     ai_comment: "Quick overview of what the conversation has covered.",
   },
 
+  // --- Tab Metadata ---
+  {
+    name: "update_discipline_context",
+    category: "tab",
+    location: "src/lib/engine/tabs.ts",
+    description: "Add or update context metadata for a discipline tab (syllabus, schedule, resources, anything)",
+    params_schema: {
+      type: "object",
+      properties: {
+        discipline_id: { type: "string" },
+        updates: { type: "object", description: "Key-value pairs to merge into metadata. Open schema — any field accepted." },
+      },
+      required: ["discipline_id", "updates"],
+    },
+    returns: "void",
+    ai_comment: "",
+  },
+  {
+    name: "update_teacher_profile",
+    category: "tab",
+    location: "src/lib/engine/tabs.ts",
+    description: "Update teacher metadata (personality, teaching style, grading tendency, anything observed)",
+    params_schema: {
+      type: "object",
+      properties: {
+        professor_id: { type: "string" },
+        updates: { type: "object", description: "Key-value pairs to merge. Open schema." },
+      },
+      required: ["professor_id", "updates"],
+    },
+    returns: "void",
+    ai_comment: "",
+  },
+
   // --- Grep + Scratch Pad ---
   {
     name: "grep",

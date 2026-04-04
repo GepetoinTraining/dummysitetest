@@ -61,7 +61,26 @@ export interface Discipline {
   name: string;
   color: string;
   icon: string;
+  category: string;
+  metadata: DisciplineMetadata;
   created_at: number;
+}
+
+// Open schema — student dumps whatever context they want
+export interface DisciplineMetadata {
+  syllabus?: string;
+  schedule?: string;
+  textbook?: string;
+  resources?: string[];
+  exam_dates?: string[];
+  grading_policy?: string;
+  prerequisites?: string[];
+  office_hours?: string;
+  ta_name?: string;
+  ta_email?: string;
+  difficulty_feeling?: string;
+  notes?: string;
+  [key: string]: unknown; // open-ended, anything goes
 }
 
 export interface Professor {
@@ -69,7 +88,20 @@ export interface Professor {
   discipline_id: string;
   name: string;
   email: string | null;
+  metadata: ProfessorMetadata;
   notes: string | null;
+}
+
+export interface ProfessorMetadata {
+  teaching_style?: string;
+  personality?: string;
+  preferred_contact?: string;
+  grading_tendency?: string;
+  exam_style?: string;
+  likes?: string;
+  dislikes?: string;
+  notes?: string;
+  [key: string]: unknown;
 }
 
 export interface Goal {

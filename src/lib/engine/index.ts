@@ -13,3 +13,4 @@ export * from "./simulation";
 export * from "./registry";
 export * from "./context";
 export * from "./autopilot";
+export * from "./tabs";

@@ -22,8 +22,27 @@ CREATE TABLE IF NOT EXISTS disciplines (
     name TEXT NOT NULL,
     color TEXT NOT NULL DEFAULT '#4C6EF5',
     icon TEXT NOT NULL DEFAULT 'book',
+    category TEXT NOT NULL DEFAULT 'general',   -- maps to dict domain
+    metadata TEXT NOT NULL DEFAULT '{}',         -- JSON blob: the student's full context dump
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
+
+-- metadata blob schema (open-ended, student adds what they want):
+-- {
+--   "syllabus": "free text or pasted syllabus",
+--   "schedule": "MWF 10am-11am, Room 302",
+--   "textbook": "Stewart Calculus 9th Ed",
+--   "resources": ["url1", "url2"],
+--   "exam_dates": ["2026-04-15", "2026-05-20"],
+--   "grading_policy": "40% exams, 30% homework, 20% project, 10% participation",
+--   "prerequisites": ["Calculus I", "Linear Algebra"],
+--   "office_hours": "Tue/Thu 2-4pm, Room 410",
+--   "ta_name": "Maria Santos",
+--   "ta_email": "msantos@uni.edu",
+--   "difficulty_feeling": "hard but interesting",
+--   "notes": "anything the student wants the AI to know",
+--   ... anything else, open schema
+-- }
 
 CREATE INDEX IF NOT EXISTS idx_disciplines_user ON disciplines(user_id);
 
@@ -32,7 +51,19 @@ CREATE TABLE IF NOT EXISTS professors (
     discipline_id TEXT NOT NULL REFERENCES disciplines(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     email TEXT,
-    notes TEXT
+    metadata TEXT NOT NULL DEFAULT '{}',  -- JSON blob: personality, teaching style, preferences
+    -- {
+    --   "teaching_style": "lecture-heavy, few examples",
+    --   "personality": "strict but fair",
+    --   "preferred_contact": "email only",
+    --   "grading_tendency": "harsh on proofs, lenient on computation",
+    --   "exam_style": "mixed theory and practice",
+    --   "likes": "students who show work",
+    --   "dislikes": "late submissions",
+    --   "notes": "free text from student observations",
+    --   ... anything, open schema
+    -- }
+    notes TEXT  -- legacy, keep for backwards compat
 );
 
 -- -----------------------------------------------------------
