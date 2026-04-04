@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "db:init": "tsx src/lib/db/init.ts",
-    "db:migrate": "tsx src/lib/db/migrate.ts"
+    "db:seed": "tsx src/lib/mock/seed.ts"
   },
   "dependencies": {
     "next": "^15.3.0",
@@ -18,15 +18,9 @@
     "@mantine/hooks": "^8.1.0",
     "@mantine/dates": "^8.1.0",
     "@mantine/notifications": "^8.1.0",
-    "@mantine/tiptap": "^8.1.0",
     "@tabler/icons-react": "^3.31.0",
     "better-sqlite3": "^11.9.0",
-    "dayjs": "^1.11.13",
-    "mermaid": "^11.6.0",
-    "gray-matter": "^4.0.3",
-    "unified": "^11.0.5",
-    "remark-parse": "^11.0.0",
-    "remark-html": "^16.0.1"
+    "mermaid": "^11.6.0"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
