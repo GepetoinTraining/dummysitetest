@@ -136,12 +136,20 @@ export const naturhaus = createTheme({
       warmth: copper[5],   // copper — active states, notifications
       link: sky[5],        // sky — interactive, rare
     },
+    // Structuralism: wood → steel progression
     tier: {
-      1: stone[3],         // ephemeral — barely there
-      2: moss[2],          // familiar — faint life
-      3: moss[4],          // established — visible growth
-      4: copper[4],        // core — warm, present
-      5: copper[6],        // permanent — aged, deep
+      1: "#c4a882",        // raw wood — rough grain, soft
+      2: "#a68b5b",        // dried wood — shaped, warm
+      3: "#6f5a35",        // hardwood — polished, structural
+      4: "#5c5c6b",        // iron — forged, dark, industrial
+      5: "#8a9ba8",        // steel — refined, permanent, load-bearing
+    },
+    tierMaterial: {
+      1: { name: "raw_wood", density: 0.4, roughness: 0.9, metalness: 0.0 },
+      2: { name: "dried_wood", density: 0.6, roughness: 0.7, metalness: 0.0 },
+      3: { name: "hardwood", density: 0.8, roughness: 0.4, metalness: 0.05 },
+      4: { name: "iron", density: 1.2, roughness: 0.3, metalness: 0.7 },
+      5: { name: "steel", density: 1.5, roughness: 0.1, metalness: 0.9 },
     },
   },
 });
