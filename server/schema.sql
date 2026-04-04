@@ -10,6 +10,35 @@
 -- Postgres for server (SQLite locally, Postgres in cloud)
 
 -- -----------------------------------------------------------
+-- CERTIFICATES (identity = cert, not login)
+-- -----------------------------------------------------------
+
+-- No username, no password, no OAuth.
+-- A cert IS the person. Minted on install.
+-- Shadows get provisional certs early.
+-- When the person arrives, shadow cert upgrades to real.
+-- Lost device → revoke cert. New device → chain to identity.
+
+CREATE TABLE IF NOT EXISTS certificates (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('student', 'teacher', 'parent', 'admin', 'shadow', 'device')),
+    public_key TEXT NOT NULL,
+    cert_payload TEXT NOT NULL,      -- signed JSON blob
+    signature TEXT NOT NULL,         -- Ed25519 signature
+    shadow_id TEXT,                  -- links to shadow if provisional
+    parent_cert_id TEXT REFERENCES certificates(id),  -- cert chain
+    revoked INTEGER NOT NULL DEFAULT 0,
+    revoked_at TIMESTAMP,
+    revoked_reason TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_certs_account ON certificates(account_id);
+CREATE INDEX IF NOT EXISTS idx_certs_shadow ON certificates(shadow_id) WHERE shadow_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_certs_active ON certificates(account_id) WHERE revoked = 0;
+
+-- -----------------------------------------------------------
 -- ACCOUNTS (thin — real data stays local)
 -- -----------------------------------------------------------
 
