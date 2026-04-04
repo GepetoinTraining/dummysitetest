@@ -7,3 +7,4 @@ export * from "./daily-push";
 export * from "./planner";
 export * from "./skills";
 export * from "./mermaid";
+export * from "./similarity";

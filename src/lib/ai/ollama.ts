@@ -12,7 +12,6 @@ import type {
   ChatMessage,
   ChatOptions,
   ChatResponse,
-  EmbeddingResponse,
   ModelSize,
 } from "./provider";
 
@@ -159,24 +158,6 @@ export class OllamaProvider implements AIProvider {
         };
       }
     }
-  }
-
-  async embed(text: string, model?: string): Promise<EmbeddingResponse> {
-    const res = await fetch(`${this.host}/api/embed`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: model ?? "nomic-embed-text",
-        input: text,
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Ollama embed failed: ${res.status}`);
-    }
-
-    const data = (await res.json()) as { embeddings: number[][] };
-    return { embedding: data.embeddings[0] };
   }
 
   /**

@@ -7,7 +7,6 @@ export type {
   ChatMessage,
   ChatOptions,
   ChatResponse,
-  EmbeddingResponse,
   ModelSize,
   ProviderConfig,
   FunctionDef,

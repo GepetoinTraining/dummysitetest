@@ -243,21 +243,29 @@ CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_messages(session_id, created
 CREATE INDEX IF NOT EXISTS idx_chat_user ON chat_messages(user_id, created_at);
 
 -- -----------------------------------------------------------
--- VECTOR STORAGE (future — placeholder for sqlite-vec)
+-- NIGHTLY SIMILARITY SCORES (AI-evaluated ground truth)
 -- -----------------------------------------------------------
 
--- When sqlite-vec is integrated, embeddings go here.
--- For now, this is a stub to show the schema direction.
-CREATE TABLE IF NOT EXISTS embeddings (
+-- The AI evaluates discipline proximity nightly using structural
+-- signals (edge density, grade correlation, tag overlap).
+-- These persisted scores are the ground truth. When an ML embedder
+-- is added later, we benchmark it against these scores.
+
+CREATE TABLE IF NOT EXISTS similarity_scores (
     id TEXT PRIMARY KEY,
-    source_type TEXT NOT NULL CHECK (source_type IN ('memory_node', 'discipline', 'skill', 'note')),
-    source_id TEXT NOT NULL,
-    vector BLOB,  -- will be sqlite-vec float32 array
-    model TEXT NOT NULL DEFAULT 'gemma-4-e2b',
-    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    disc_a TEXT NOT NULL REFERENCES disciplines(id) ON DELETE CASCADE,
+    disc_b TEXT NOT NULL REFERENCES disciplines(id) ON DELETE CASCADE,
+    edge_density REAL NOT NULL DEFAULT 0,
+    grade_correlation REAL NOT NULL DEFAULT 0,
+    tag_overlap REAL NOT NULL DEFAULT 0,
+    combined REAL NOT NULL DEFAULT 0,
+    evaluated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE(user_id, disc_a, disc_b)
 );
 
-CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_similarity_user ON similarity_scores(user_id);
+CREATE INDEX IF NOT EXISTS idx_similarity_date ON similarity_scores(evaluated_at);
 
 -- -----------------------------------------------------------
 -- API KEYS (encrypted at rest for optional external providers)

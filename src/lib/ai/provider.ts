@@ -40,10 +40,6 @@ export interface ChatResponse {
   done: boolean;
 }
 
-export interface EmbeddingResponse {
-  embedding: number[];
-}
-
 export interface AIProvider {
   /** Chat completion (with optional function calling) */
   chat(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse>;
@@ -53,9 +49,6 @@ export interface AIProvider {
     messages: ChatMessage[],
     options?: ChatOptions
   ): AsyncIterable<ChatResponse>;
-
-  /** Generate embeddings for lattice/vector operations */
-  embed(text: string, model?: string): Promise<EmbeddingResponse>;
 
   /** Check if the provider is available and model is loaded */
   isAvailable(): Promise<boolean>;

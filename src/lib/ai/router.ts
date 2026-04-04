@@ -7,15 +7,13 @@
 //    a. Student has configured an API key
 //    b. The request is tagged as "heavy research"
 //    c. Ollama is unavailable (fallback)
-// 3. Embeddings always go through Ollama (local, no data leaves)
+// 3. Similarity/lattice computation is pure logic — no ML model needed
 // ============================================================
 
 import type {
-  AIProvider,
   ChatMessage,
   ChatOptions,
   ChatResponse,
-  EmbeddingResponse,
   ModelSize,
 } from "./provider";
 import { OllamaProvider } from "./ollama";
@@ -97,13 +95,6 @@ export class AIRouter {
     options?: ChatOptions
   ): AsyncIterable<ChatResponse> {
     return this.ollama.chatStream(messages, options);
-  }
-
-  /**
-   * Embeddings — ALWAYS local. No data leaves the machine.
-   */
-  async embed(text: string): Promise<EmbeddingResponse> {
-    return this.ollama.embed(text);
   }
 
   /**

@@ -12,7 +12,6 @@ import type {
   ChatMessage,
   ChatOptions,
   ChatResponse,
-  EmbeddingResponse,
 } from "./provider";
 
 export class ExternalProvider implements AIProvider {
@@ -182,31 +181,4 @@ export class ExternalProvider implements AIProvider {
     yield response;
   }
 
-  async embed(text: string): Promise<EmbeddingResponse> {
-    if (this.name === "anthropic") {
-      throw new Error("Anthropic does not support embeddings — use Ollama");
-    }
-
-    const res = await fetch(`${this.baseUrl}/embeddings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: text,
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Embedding failed: ${res.status}`);
-    }
-
-    const data = (await res.json()) as {
-      data: { embedding: number[] }[];
-    };
-
-    return { embedding: data.data[0].embedding };
-  }
 }
