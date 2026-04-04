@@ -563,6 +563,51 @@ const BUILTIN_FUNCTIONS: Omit<RegistryEntry, "id" | "usage_count" | "last_used_a
     ai_comment: "Use to suggest bridges: 'Your strength in X can help with Y'. Read from persisted scores, never compute live.",
   },
 
+  // --- Context ---
+  {
+    name: "query_turns",
+    category: "context",
+    location: "src/lib/engine/context.ts",
+    description: "Retrieve raw content of specific conversation turns by number range",
+    params_schema: {
+      type: "object",
+      properties: {
+        from_turn: { type: "number", description: "Start turn number (inclusive)" },
+        to_turn: { type: "number", description: "End turn number (inclusive)" },
+      },
+      required: ["from_turn", "to_turn"],
+    },
+    returns: "LedgerEntry[]",
+    ai_comment: "Use when you need to re-read something specific from earlier. The Mermaid graph shows you what happened, this gives you the raw text.",
+  },
+  {
+    name: "query_by_tag",
+    category: "context",
+    location: "src/lib/engine/context.ts",
+    description: "Find all conversation turns where a specific topic/tag was discussed",
+    params_schema: {
+      type: "object",
+      properties: {
+        tag: { type: "string", description: "Memory tag to search for" },
+      },
+      required: ["tag"],
+    },
+    returns: "LedgerEntry[]",
+    ai_comment: "Use when student references something discussed earlier. Find the turns where that topic came up.",
+  },
+  {
+    name: "get_conversation_stats",
+    category: "context",
+    location: "src/lib/engine/context.ts",
+    description: "Get summary stats: total turns, unique tags, most discussed topics",
+    params_schema: {
+      type: "object",
+      properties: {},
+    },
+    returns: "{ totalTurns, uniqueTags, topTags[] }",
+    ai_comment: "Quick overview of what the conversation has covered.",
+  },
+
   // --- Daily Push ---
   {
     name: "get_slipping_knowledge",

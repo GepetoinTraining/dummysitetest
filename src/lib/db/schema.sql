@@ -243,6 +243,34 @@ CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_messages(session_id, created
 CREATE INDEX IF NOT EXISTS idx_chat_user ON chat_messages(user_id, created_at);
 
 -- -----------------------------------------------------------
+-- CONTEXT LEDGER (rolling Mermaid-compressed conversation)
+-- -----------------------------------------------------------
+
+-- Each turn gets compressed into a Mermaid schema.
+-- The AI's context = the Mermaid graph + last 3 raw turns.
+-- Rolling buffer of 350 slots — oldest gets evicted.
+-- The Mermaid schema preserves structural meaning at ~10x
+-- compression vs raw text.
+
+CREATE TABLE IF NOT EXISTS context_ledger (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_id TEXT REFERENCES study_sessions(id) ON DELETE SET NULL,
+    slot INTEGER NOT NULL,           -- 0-349, wraps around
+    turn_number INTEGER NOT NULL,    -- absolute turn counter
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    raw_content TEXT NOT NULL,       -- original message (kept for last 3 query)
+    mermaid_schema TEXT NOT NULL,    -- compressed Mermaid extraction
+    central_idea TEXT NOT NULL,      -- one-line summary
+    tags TEXT NOT NULL DEFAULT '[]', -- JSON array of memory tags touched
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ledger_slot ON context_ledger(user_id, session_id, slot);
+CREATE INDEX IF NOT EXISTS idx_ledger_turn ON context_ledger(user_id, session_id, turn_number DESC);
+CREATE INDEX IF NOT EXISTS idx_ledger_tags ON context_ledger(user_id, tags);
+
+-- -----------------------------------------------------------
 -- NIGHTLY SIMILARITY SCORES (AI-evaluated ground truth)
 -- -----------------------------------------------------------
 
