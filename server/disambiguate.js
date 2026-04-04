@@ -178,8 +178,76 @@ function formatGradeLevel(level) {
   return level;
 }
 
+// -----------------------------------------------------------
+// Teacher-to-teacher disambiguation
+// -----------------------------------------------------------
+
+// When a new teacher signs up and matches an existing name,
+// ask the ALREADY CLAIMED teacher: "Is this you or someone else?"
+// The existing teacher is the oracle. One question. Done.
+
+async function peerDisambiguate(db, newTeacherName, institutionId) {
+  const normalized = newTeacherName.toLowerCase().trim().replace(/\s+/g, ' ');
+
+  // Find already-claimed teachers with the same name
+  const claimedPeers = await db.query(
+    `SELECT tm.claimed_by, a.display_name, tm.discipline_hint
+     FROM teacher_manifold tm
+     JOIN accounts a ON tm.claimed_by = a.id
+     WHERE tm.teacher_name_normalized = $1
+       AND (tm.institution_id = $2 OR tm.institution_id IS NULL)
+       AND tm.claimed_by IS NOT NULL`,
+    [normalized, institutionId]
+  );
+
+  if (claimedPeers.rows.length === 0) return null;
+
+  // Ask each existing Mr. Carter: "Is this new person you?"
+  // Send via switchboard to their AI
+  const disambigRequests = claimedPeers.rows.map(peer => ({
+    to_account_id: peer.claimed_by,
+    channel: 'disambiguate',
+    question: `A new teacher named "${newTeacherName}" is joining from your institution. Is this you on a new device, or a different person?`,
+    options: ['me_new_device', 'different_person'],
+  }));
+
+  return disambigRequests;
+}
+
+// Process the peer's answer
+async function processPeerAnswer(db, existingTeacherId, newShadowId, answer) {
+  if (answer === 'me_new_device') {
+    // Chain the new cert to the existing teacher's identity
+    return { action: 'chain_device', existing_account: existingTeacherId };
+  }
+
+  if (answer === 'different_person') {
+    // Confirmed different — new shadow is a separate person
+    // Mark in manifold so we never ask again
+    await db.query(
+      `UPDATE teacher_manifold
+       SET reported_metadata = jsonb_set(
+         COALESCE(reported_metadata::jsonb, '{}'::jsonb),
+         '{confirmed_different_from}',
+         to_jsonb(array_append(
+           COALESCE((reported_metadata::jsonb->>'confirmed_different_from')::text[], ARRAY[]::text[]),
+           $1
+         ))
+       )
+       WHERE id = $2`,
+      [existingTeacherId, newShadowId]
+    );
+
+    return { action: 'separate_identity', shadow_id: newShadowId };
+  }
+
+  return { action: 'unknown' };
+}
+
 module.exports = {
   findShadowCandidates,
   buildQuestions,
   scoreAnswers,
+  peerDisambiguate,
+  processPeerAnswer,
 };
