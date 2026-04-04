@@ -258,3 +258,36 @@ CREATE TABLE IF NOT EXISTS embeddings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, source_id);
+
+-- -----------------------------------------------------------
+-- API KEYS (encrypted at rest for optional external providers)
+-- -----------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL CHECK (provider IN ('anthropic', 'openai', 'google')),
+    key_hash TEXT NOT NULL,        -- SHA-256 hash for identification
+    encrypted_key TEXT NOT NULL,   -- AES-256-GCM encrypted
+    salt TEXT NOT NULL,            -- PBKDF2 salt (hex)
+    iv TEXT NOT NULL,              -- AES IV (hex)
+    auth_tag TEXT NOT NULL,        -- GCM auth tag (hex)
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE(user_id, provider)
+);
+
+-- -----------------------------------------------------------
+-- USER SETTINGS (ollama config, preferences)
+-- -----------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    ollama_host TEXT NOT NULL DEFAULT 'http://localhost:11434',
+    ollama_model TEXT NOT NULL DEFAULT 'gemma4:12b',
+    urgency_threshold REAL NOT NULL DEFAULT 0.7,
+    decay_beta REAL NOT NULL DEFAULT 0.5,
+    learning_rate REAL NOT NULL DEFAULT 0.3,
+    daily_push_enabled INTEGER NOT NULL DEFAULT 1,
+    daily_push_time TEXT NOT NULL DEFAULT '09:00',
+    daily_push_max INTEGER NOT NULL DEFAULT 5
+);
