@@ -14,3 +14,4 @@ export * from "./registry";
 export * from "./context";
 export * from "./autopilot";
 export * from "./tabs";
+export * from "./primitives";

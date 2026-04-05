@@ -98,6 +98,11 @@ export function seedDatabase(): void {
 
   tx();
   console.log("Database seeded with mock data.");
+
+  // Seed the dashboard UI for mock user
+  const { seedDashboard } = require("@/lib/engine/primitives");
+  seedDashboard("usr_001");
+  console.log("Dashboard UI seeded.");
 }
 
 // Run directly
