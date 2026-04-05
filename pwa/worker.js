@@ -443,7 +443,7 @@ function renderAddDisciplineModal() {
       </div>
     </div>
   `;
-  postMessage({ type: 'html', payload: document.getElementById ? html : html });
+  postMessage({ type: 'html', payload: html });
 }
 
 function renderChat() {
