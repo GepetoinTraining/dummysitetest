@@ -201,8 +201,19 @@ export function resolveView(userId: string, viewName: string): {
 // -----------------------------------------------------------
 
 /**
+ * Reset and re-seed the dashboard. Clears existing primitives.
+ */
+export function resetDashboard(userId: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM ui_views WHERE user_id = ?").run(userId);
+  db.prepare("DELETE FROM ui_primitives WHERE user_id = ?").run(userId);
+  seedDashboard(userId);
+}
+
+/**
  * Seed the default dashboard for a new user.
- * Light/dark auto. Golden ratio spacing baked in.
+ * Full topology — every element that needs to render is a row.
+ * The worker and DB hydrate this into a live app.
  */
 export function seedDashboard(userId: string): void {
   const db = getDb();
@@ -217,22 +228,24 @@ export function seedDashboard(userId: string): void {
   const root = createPrimitive({
     userId,
     component: "AppShell",
-    props: { padding: "md" },
-    style: {},
+    props: { padding: "md", headerHeight: 55, navWidth: 260 },
   });
 
-  // Header
-  const header = createPrimitive({
+  // ── HEADER ──────────────────────────────────────────────
+
+  // Left side: logo + badge
+  const headerLeft = createPrimitive({
     userId,
     parentId: root,
     component: "Group",
     slot: "header",
-    props: { justify: "space-between", h: 55 },
+    props: { gap: "sm" },
+    sortOrder: 0,
   });
 
   createPrimitive({
     userId,
-    parentId: header,
+    parentId: headerLeft,
     component: "Text",
     props: { children: "StudySync", fw: 700, size: "lg" },
     sortOrder: 0,
@@ -240,36 +253,143 @@ export function seedDashboard(userId: string): void {
 
   createPrimitive({
     userId,
-    parentId: header,
+    parentId: headerLeft,
+    component: "Badge",
+    props: { children: "Gemma 4 E2B", variant: "light", size: "sm" },
+    sortOrder: 1,
+  });
+
+  // Right side: action icons
+  const headerRight = createPrimitive({
+    userId,
+    parentId: root,
     component: "Group",
+    slot: "header",
     props: { gap: "xs" },
     sortOrder: 1,
   });
 
-  // Navbar — discipline tabs go here
-  const navbar = createPrimitive({
+  createPrimitive({
     userId,
-    parentId: root,
-    component: "Stack",
-    slot: "navbar",
-    props: { gap: "xs", p: "sm" },
+    parentId: headerRight,
+    component: "ActionIcon",
+    props: { variant: "subtle", size: "lg", icon: "bell" },
+    onAction: { type: "navigate", view: "notifications" },
+    sortOrder: 0,
   });
 
   createPrimitive({
     userId,
-    parentId: navbar,
+    parentId: headerRight,
+    component: "ActionIcon",
+    props: { variant: "subtle", size: "lg", icon: "calendar" },
+    onAction: { type: "navigate", view: "planner" },
+    sortOrder: 1,
+  });
+
+  createPrimitive({
+    userId,
+    parentId: headerRight,
+    component: "ActionIcon",
+    props: { variant: "subtle", size: "lg", icon: "network" },
+    onAction: { type: "navigate", view: "memory_web" },
+    sortOrder: 2,
+  });
+
+  // ── NAVBAR ──────────────────────────────────────────────
+
+  // Disciplines section header + add button
+  const navHeader = createPrimitive({
+    userId,
+    parentId: root,
+    component: "Group",
+    slot: "navbar",
+    props: { justify: "space-between" },
+    sortOrder: 0,
+  });
+
+  createPrimitive({
+    userId,
+    parentId: navHeader,
     component: "Text",
     props: { children: "DISCIPLINES", size: "xs", fw: 600, c: "dimmed" },
     sortOrder: 0,
   });
 
-  // Main content area
+  createPrimitive({
+    userId,
+    parentId: navHeader,
+    component: "ActionIcon",
+    props: { variant: "subtle", size: "sm", icon: "plus" },
+    onAction: { type: "modal", modal: "create_tab" },
+    sortOrder: 1,
+  });
+
+  // Discipline tabs (populated dynamically from disciplines table)
+  const navTabs = createPrimitive({
+    userId,
+    parentId: root,
+    component: "Tabs",
+    slot: "navbar",
+    props: { orientation: "vertical", variant: "pills", defaultValue: "welcome" },
+    dataSource: "/api/tabs?user_id=" + userId,
+    sortOrder: 1,
+  });
+
+  createPrimitive({
+    userId,
+    parentId: navTabs,
+    component: "TabItem",
+    props: { value: "welcome", label: "Get Started" },
+    sortOrder: 0,
+  });
+
+  // Divider
+  createPrimitive({
+    userId,
+    parentId: root,
+    component: "Divider",
+    slot: "navbar",
+    props: { my: "sm" },
+    sortOrder: 2,
+  });
+
+  // AI Assistant link
+  const navAI = createPrimitive({
+    userId,
+    parentId: root,
+    component: "Group",
+    slot: "navbar",
+    props: { gap: "xs", style: { cursor: "pointer" } },
+    onAction: { type: "navigate", view: "chat" },
+    sortOrder: 3,
+  });
+
+  createPrimitive({
+    userId,
+    parentId: navAI,
+    component: "ActionIcon",
+    props: { variant: "subtle", size: "sm", icon: "chat" },
+    sortOrder: 0,
+  });
+
+  createPrimitive({
+    userId,
+    parentId: navAI,
+    component: "Text",
+    props: { children: "AI Assistant", size: "sm" },
+    sortOrder: 1,
+  });
+
+  // ── MAIN CONTENT ────────────────────────────────────────
+
   const main = createPrimitive({
     userId,
     parentId: root,
     component: "Stack",
     slot: "main",
-    props: { gap: "md", align: "center", justify: "center", mih: 400 },
+    props: { gap: "lg", align: "center", justify: "center", mih: 400 },
+    sortOrder: 0,
   });
 
   createPrimitive({
@@ -285,9 +405,46 @@ export function seedDashboard(userId: string): void {
     parentId: main,
     component: "Text",
     props: {
-      children: "Add your first discipline to begin.",
+      children: "Add your first discipline tab to begin. Your AI assistant will help you build a study plan, track your progress, and connect ideas across subjects.",
       c: "dimmed", maw: 500, ta: "center",
     },
+    sortOrder: 1,
+  });
+
+  createPrimitive({
+    userId,
+    parentId: main,
+    component: "Button",
+    props: { children: "Add Discipline", variant: "filled", size: "md", icon: "plus" },
+    onAction: { type: "modal", modal: "create_tab" },
+    sortOrder: 2,
+  });
+
+  // ── DAILY CHALLENGES SECTION (hidden until challenges exist) ──
+
+  const challengeSection = createPrimitive({
+    userId,
+    parentId: root,
+    component: "Paper",
+    slot: "main",
+    props: { p: "md", withBorder: true },
+    dataSource: "/api/challenges?user_id=" + userId,
+    sortOrder: 1,
+  });
+
+  createPrimitive({
+    userId,
+    parentId: challengeSection,
+    component: "Text",
+    props: { children: "Daily Challenges", fw: 600, size: "sm" },
+    sortOrder: 0,
+  });
+
+  createPrimitive({
+    userId,
+    parentId: challengeSection,
+    component: "Text",
+    props: { children: "Knowledge slipping? Quick challenges to keep it sharp.", c: "dimmed", size: "xs" },
     sortOrder: 1,
   });
 
