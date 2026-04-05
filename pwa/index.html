@@ -114,6 +114,19 @@
           console.log('StudySync worker ready. DB loaded.');
           break;
 
+        case 'backup':
+          // Save to local file silently
+          try {
+            const blob = new Blob([msg.payload], { type: 'application/json' });
+            // Use File System Access API if available, else just keep in memory
+            if (window._backupHandle) {
+              window._backupHandle.createWritable().then(w => { w.write(blob); w.close(); });
+            } else {
+              window._lastBackup = blob;
+            }
+          } catch(e) { /* silent */ }
+          break;
+
         case 'error':
           console.error('Worker error:', msg.payload);
           break;

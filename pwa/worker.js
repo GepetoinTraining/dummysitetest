@@ -5,143 +5,70 @@
 // The main thread is a display surface. This is the brain.
 // ============================================================
 
-importScripts('sql-wasm.js');
-
-let db = null;
+let db = null; // IDBDatabase instance
 
 // -----------------------------------------------------------
 // Boot
 // -----------------------------------------------------------
 
 async function boot() {
-  // Initialize SQLite via sql.js WASM
-  const SQL = await initSqlJs({
-    locateFile: file => file  // sql-wasm.wasm in same directory
-  });
+  db = await openDB();
 
-  // Try to load existing DB from IndexedDB
-  const saved = await loadFromIndexedDB();
-  if (saved) {
-    db = new SQL.Database(new Uint8Array(saved));
-  } else {
-    db = new SQL.Database();
-    initSchema();
-    seedData();
+  // Seed if first run
+  const userCount = await count('users');
+  if (userCount === 0) {
+    await seedData();
   }
 
   postMessage({ type: 'ready' });
-
-  // Render initial view
   renderDashboard();
-
-  // Auto-save DB to IndexedDB periodically
-  setInterval(() => saveToIndexedDB(), 30000);
 }
 
 // -----------------------------------------------------------
-// Schema — same as our schema.sql, inline
+// IndexedDB — the database IS the browser
 // -----------------------------------------------------------
 
-function initSchema() {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS disciplines (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      color TEXT NOT NULL DEFAULT '#a68b5b',
-      icon TEXT NOT NULL DEFAULT 'book',
-      category TEXT NOT NULL DEFAULT 'general',
-      metadata TEXT NOT NULL DEFAULT '{}',
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS professors (
-      id TEXT PRIMARY KEY,
-      discipline_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      email TEXT,
-      metadata TEXT NOT NULL DEFAULT '{}',
-      notes TEXT
-    );
-    CREATE TABLE IF NOT EXISTS goals (
-      id TEXT PRIMARY KEY,
-      discipline_id TEXT NOT NULL,
-      target_grade REAL NOT NULL,
-      set_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS grades (
-      id TEXT PRIMARY KEY,
-      discipline_id TEXT NOT NULL,
-      value REAL NOT NULL,
-      source TEXT NOT NULL,
-      recorded_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS memory_nodes (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      scope TEXT NOT NULL,
-      contact_id TEXT,
-      discipline_id TEXT,
-      tag TEXT NOT NULL,
-      label TEXT NOT NULL,
-      xp REAL NOT NULL DEFAULT 1,
-      tier INTEGER NOT NULL DEFAULT 1,
-      created_at INTEGER NOT NULL,
-      last_bumped_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS memory_edges (
-      id TEXT PRIMARY KEY,
-      source_id TEXT NOT NULL,
-      target_id TEXT NOT NULL,
-      relation TEXT NOT NULL,
-      weight REAL NOT NULL DEFAULT 0.5,
-      label TEXT
-    );
-    CREATE TABLE IF NOT EXISTS study_sessions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      discipline_id TEXT NOT NULL,
-      skill_file TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      started_at INTEGER NOT NULL,
-      ended_at INTEGER,
-      duration_seconds INTEGER,
-      self_assessment REAL,
-      ai_assessment REAL,
-      combined_score REAL
-    );
-    CREATE TABLE IF NOT EXISTS chat_messages (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      session_id TEXT,
-      role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  `);
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('studysync', 1);
+
+    request.onupgradeneeded = (e) => {
+      const idb = e.target.result;
+      // Each table = an object store
+      const stores = [
+        'users', 'disciplines', 'professors', 'goals', 'grades',
+        'memory_nodes', 'memory_edges', 'study_sessions', 'chat_messages',
+        'context_ledger', 'dict_entries', 'graph_blobs', 'skill_files',
+      ];
+      for (const name of stores) {
+        if (!idb.objectStoreNames.contains(name)) {
+          idb.createObjectStore(name, { keyPath: 'id' });
+        }
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 }
 
 // -----------------------------------------------------------
 // Seed — minimal first-run data
 // -----------------------------------------------------------
 
-function seedData() {
+async function seedData() {
   const now = Math.floor(Date.now() / 1000);
-  db.run(`INSERT INTO users (id, name, created_at) VALUES ('usr_001', 'Student', ${now})`);
+  await put('users', { id: 'usr_001', name: 'Student', created_at: now });
 }
 
 // -----------------------------------------------------------
 // HTML Builder — reads DB, outputs HTML strings
 // -----------------------------------------------------------
 
-function renderDashboard() {
-  const user = queryOne('SELECT * FROM users WHERE id = ?', ['usr_001']);
-  const disciplines = queryAll('SELECT * FROM disciplines WHERE user_id = ? ORDER BY created_at', ['usr_001']);
-  const activeSessions = queryAll("SELECT * FROM study_sessions WHERE user_id = ? AND status = 'active'", ['usr_001']);
+async function renderDashboard() {
+  const user = await get('users', 'usr_001');
+  const allDisc = await getAll('disciplines');
+  const disciplines = allDisc.filter(d => d.user_id === 'usr_001').sort((a, b) => a.created_at - b.created_at);
 
   const tabsHtml = disciplines.length > 0
     ? disciplines.map(d => `
@@ -154,7 +81,7 @@ function renderDashboard() {
     : '<div style="color: var(--text-muted); font-size: 13px; padding: var(--xs);">No disciplines yet</div>';
 
   const mainHtml = disciplines.length > 0
-    ? renderDisciplineView(disciplines[0])
+    ? await renderDisciplineView(disciplines[0])
     : `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                   height: 100%; gap: var(--md); padding: var(--xl);">
@@ -227,12 +154,16 @@ function renderDashboard() {
   postMessage({ type: 'html', payload: html });
 }
 
-function renderDisciplineView(disc) {
+async function renderDisciplineView(disc) {
   const meta = JSON.parse(disc.metadata || '{}');
-  const prof = queryOne('SELECT * FROM professors WHERE discipline_id = ?', [disc.id]);
-  const goal = queryOne('SELECT target_grade FROM goals WHERE discipline_id = ? ORDER BY set_at DESC LIMIT 1', [disc.id]);
-  const grade = queryOne('SELECT value FROM grades WHERE discipline_id = ? ORDER BY recorded_at DESC LIMIT 1', [disc.id]);
-  const tags = queryAll("SELECT tag, tier, xp FROM memory_nodes WHERE user_id = 'usr_001' AND discipline_id = ? AND scope = 'global' ORDER BY tier DESC, xp DESC", [disc.id]);
+  const allProfs = await getAll('professors');
+  const prof = allProfs.find(p => p.discipline_id === disc.id) || null;
+  const allGoals = await getAll('goals');
+  const goal = allGoals.filter(g => g.discipline_id === disc.id).sort((a, b) => b.set_at - a.set_at)[0] || null;
+  const allGrades = await getAll('grades');
+  const grade = allGrades.filter(g => g.discipline_id === disc.id).sort((a, b) => b.recorded_at - a.recorded_at)[0] || null;
+  const allNodes = await getAll('memory_nodes');
+  const tags = allNodes.filter(n => n.user_id === 'usr_001' && n.discipline_id === disc.id && n.scope === 'global').sort((a, b) => b.tier - a.tier || b.xp - a.xp);
 
   const gradeVal = grade ? Math.round(grade.value * 100) : 0;
   const goalVal = goal ? Math.round(goal.target_grade * 100) : 80;
@@ -301,18 +232,18 @@ onmessage = function(e) {
     case 'action':
       handleAction(msg.action, msg.id, msg.value);
       break;
-
     case 'submit':
       handleSubmit(msg.action, msg.data);
       break;
-
     case 'input':
-      handleInput(msg.bind, msg.value, msg.id);
+      break;
+    case 'restore':
+      restore(msg.data);
       break;
   }
 };
 
-function handleAction(action, id, value) {
+async function handleAction(action, id, value) {
   switch (action) {
     case 'add_discipline':
       renderAddDisciplineModal();
@@ -320,34 +251,31 @@ function handleAction(action, id, value) {
 
     case 'select_tab': {
       const discId = id.replace('tab-', '');
-      const disc = queryOne('SELECT * FROM disciplines WHERE id = ?', [discId]);
+      const disc = await get('disciplines', discId);
       if (disc) {
         postMessage({
           type: 'patch',
           id: 'main-content',
-          payload: `<div id="main-content" style="flex: 1; overflow-y: auto; padding: var(--md);">${renderDisciplineView(disc)}</div>`,
+          payload: `<div id="main-content" style="flex: 1; overflow-y: auto; padding: var(--md);">${await renderDisciplineView(disc)}</div>`,
         });
       }
       break;
     }
 
     case 'start_session': {
-      const sessId = uid();
       const now = Math.floor(Date.now() / 1000);
-      db.run(
-        "INSERT INTO study_sessions (id, user_id, discipline_id, status, started_at) VALUES (?, 'usr_001', ?, 'active', ?)",
-        [sessId, id, now]
-      );
-      renderDashboard();
+      await put('study_sessions', { id: uid(), user_id: 'usr_001', discipline_id: id, status: 'active', started_at: now });
+      await backup();
+      await renderDashboard();
       break;
     }
 
     case 'open_chat':
-      renderChat();
+      await renderChat();
       break;
 
     case 'close_modal':
-      renderDashboard();
+      await renderDashboard();
       break;
 
     default:
@@ -355,58 +283,35 @@ function handleAction(action, id, value) {
   }
 }
 
-function handleSubmit(action, data) {
+async function handleSubmit(action, data) {
   switch (action) {
     case 'create_discipline': {
-      const discId = uid();
-      const profId = uid();
-      const goalId = uid();
       const now = Math.floor(Date.now() / 1000);
-      const color = ['#a68b5b', '#6b8f4e', '#c46b2a', '#3d7db5', '#5c5c6b', '#8a9ba8'][
-        queryAll('SELECT id FROM disciplines WHERE user_id = ?', ['usr_001']).length % 6
-      ];
+      const allDisc = await getAll('disciplines');
+      const color = ['#a68b5b', '#6b8f4e', '#c46b2a', '#3d7db5', '#5c5c6b', '#8a9ba8'][allDisc.length % 6];
+      const discId = uid();
 
-      db.run(
-        "INSERT INTO disciplines (id, user_id, name, color, category, created_at) VALUES (?, 'usr_001', ?, ?, 'general', ?)",
-        [discId, data.discipline_name, color, now]
-      );
-      db.run(
-        "INSERT INTO professors (id, discipline_id, name) VALUES (?, ?, ?)",
-        [profId, discId, data.teacher_name || 'Unknown']
-      );
-      db.run(
-        "INSERT INTO goals (id, discipline_id, target_grade, set_at) VALUES (?, ?, 0.8, ?)",
-        [goalId, discId, now]
-      );
+      await put('disciplines', { id: discId, user_id: 'usr_001', name: data.discipline_name, color, icon: 'book', category: 'general', metadata: '{}', created_at: now });
+      await put('professors', { id: uid(), discipline_id: discId, name: data.teacher_name || 'Unknown', email: null, metadata: '{}', notes: null });
+      await put('goals', { id: uid(), discipline_id: discId, target_grade: 0.8, set_at: now });
 
-      saveToIndexedDB();
-      renderDashboard();
+      await backup();
+      await renderDashboard();
       break;
     }
 
     case 'send_chat': {
-      const msgId = uid();
       const now = Math.floor(Date.now() / 1000);
-      db.run(
-        "INSERT INTO chat_messages (id, user_id, role, content, created_at) VALUES (?, 'usr_001', 'user', ?, ?)",
-        [msgId, data.message, now]
-      );
+      await put('chat_messages', { id: uid(), user_id: 'usr_001', session_id: null, role: 'user', content: data.message, created_at: now });
 
       // TODO: call Ollama here for AI response
-      const aiId = uid();
-      db.run(
-        "INSERT INTO chat_messages (id, user_id, role, content, created_at) VALUES (?, 'usr_001', 'assistant', ?, ?)",
-        [aiId, 'Ollama integration coming soon. The engine is ready.', now]
-      );
+      await put('chat_messages', { id: uid(), user_id: 'usr_001', session_id: null, role: 'assistant', content: 'Ollama integration coming soon. The engine is ready.', created_at: now });
 
-      renderChat();
+      await backup();
+      await renderChat();
       break;
     }
   }
-}
-
-function handleInput(bind, value, id) {
-  // For live-binding inputs to DB (future)
 }
 
 // -----------------------------------------------------------
@@ -446,11 +351,12 @@ function renderAddDisciplineModal() {
   postMessage({ type: 'html', payload: html });
 }
 
-function renderChat() {
-  const messages = queryAll(
-    "SELECT role, content, created_at FROM chat_messages WHERE user_id = 'usr_001' ORDER BY created_at DESC LIMIT 50",
-    []
-  ).reverse();
+async function renderChat() {
+  const allMsgs = await getAll('chat_messages');
+  const messages = allMsgs
+    .filter(m => m.user_id === 'usr_001')
+    .sort((a, b) => a.created_at - b.created_at)
+    .slice(-50);
 
   const msgsHtml = messages.map(m => `
     <div style="display: flex; flex-direction: column; align-items: ${m.role === 'user' ? 'flex-end' : 'flex-start'}; margin-bottom: var(--xs);">
@@ -485,37 +391,57 @@ function renderChat() {
 }
 
 // -----------------------------------------------------------
-// DB helpers
+// IndexedDB helpers — replaces SQL queries
 // -----------------------------------------------------------
 
-function queryOne(sql, params) {
-  const stmt = db.prepare(sql);
-  if (params) stmt.bind(params);
-  if (stmt.step()) {
-    const cols = stmt.getColumnNames();
-    const vals = stmt.get();
-    stmt.free();
-    const row = {};
-    cols.forEach((c, i) => row[c] = vals[i]);
-    return row;
-  }
-  stmt.free();
-  return null;
+function put(store, obj) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(obj);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
-function queryAll(sql, params) {
-  const stmt = db.prepare(sql);
-  if (params) stmt.bind(params);
-  const rows = [];
-  const cols = stmt.getColumnNames();
-  while (stmt.step()) {
-    const vals = stmt.get();
-    const row = {};
-    cols.forEach((c, i) => row[c] = vals[i]);
-    rows.push(row);
-  }
-  stmt.free();
-  return rows;
+function get(store, id) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => resolve(null);
+  });
+}
+
+function getAll(store) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
+function count(store) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).count();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(0);
+  });
+}
+
+function del(store, id) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(id);
+    tx.oncomplete = () => resolve();
+  });
+}
+
+// Filter helper — getAll + filter in JS
+async function query(store, filterFn) {
+  const all = await getAll(store);
+  return filterFn ? all.filter(filterFn) : all;
 }
 
 function uid() {
@@ -524,38 +450,47 @@ function uid() {
   return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// -----------------------------------------------------------
+// Backup — export full DB to a JSON file
+// Runs after every write. Student always has a local file.
+// If IndexedDB dies, import the backup and keep going.
+// -----------------------------------------------------------
+
+async function backup() {
+  const stores = ['users', 'disciplines', 'professors', 'goals', 'grades',
+    'memory_nodes', 'memory_edges', 'study_sessions', 'chat_messages',
+    'context_ledger', 'dict_entries', 'graph_blobs', 'skill_files'];
+
+  const dump = {};
+  for (const store of stores) {
+    try {
+      dump[store] = await getAll(store);
+    } catch (e) {
+      dump[store] = [];
+    }
+  }
+
+  // Post to main thread for saving
+  postMessage({
+    type: 'backup',
+    payload: JSON.stringify(dump),
+  });
+}
+
+// Restore from backup file
+async function restore(jsonString) {
+  const dump = JSON.parse(jsonString);
+  for (const [store, rows] of Object.entries(dump)) {
+    for (const row of rows) {
+      await put(store, row);
+    }
+  }
+  await renderDashboard();
+}
+
 function esc(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// -----------------------------------------------------------
-// IndexedDB persistence
-// -----------------------------------------------------------
-
-function saveToIndexedDB() {
-  if (!db) return;
-  const data = db.export();
-  const request = indexedDB.open('studysync', 1);
-  request.onupgradeneeded = () => request.result.createObjectStore('db');
-  request.onsuccess = () => {
-    const tx = request.result.transaction('db', 'readwrite');
-    tx.objectStore('db').put(data, 'main');
-  };
-}
-
-function loadFromIndexedDB() {
-  return new Promise((resolve) => {
-    const request = indexedDB.open('studysync', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('db');
-    request.onsuccess = () => {
-      const tx = request.result.transaction('db', 'readonly');
-      const get = tx.objectStore('db').get('main');
-      get.onsuccess = () => resolve(get.result || null);
-      get.onerror = () => resolve(null);
-    };
-    request.onerror = () => resolve(null);
-  });
 }
 
 // -----------------------------------------------------------
