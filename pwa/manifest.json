@@ -1,0 +1,9 @@
+{
+  "name": "StudySync",
+  "short_name": "StudySync",
+  "description": "AI-powered study coordination. Local-first. Sovereign.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#faf6f1",
+  "theme_color": "#a68b5b"
+}

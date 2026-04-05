@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudySync</title>
+  <style>
+    /* Naturhaus — inline, no external CSS dep for base */
+    :root {
+      --surface: #faf6f1;
+      --panel: #f0e8dc;
+      --border: #d4d1cc;
+      --text: #383129;
+      --text-secondary: #7d756b;
+      --text-muted: #b8b3ad;
+      --accent-growth: #6b8f4e;
+      --accent-warm: #c46b2a;
+      --accent-link: #3d7db5;
+      --canvas-bg: #faf6f1;
+      --grid-line: #d4d1cc;
+
+      /* Golden ratio spacing */
+      --xs: 8px;
+      --sm: 13px;
+      --md: 21px;
+      --lg: 34px;
+      --xl: 55px;
+
+      /* Tier materials */
+      --tier1: #c4a882;
+      --tier2: #a68b5b;
+      --tier3: #6f5a35;
+      --tier4: #5c5c6b;
+      --tier5: #8a9ba8;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --surface: #252019;
+        --panel: #383129;
+        --border: #4e463d;
+        --text: #f0e8dc;
+        --text-secondary: #b8b3ad;
+        --text-muted: #7d756b;
+        --canvas-bg: #252019;
+        --grid-line: #383129;
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--surface);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #root {
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="loading">loading...</div>
+  </div>
+  <script>
+    // Boot the worker — the brain
+    const worker = new Worker('worker.js');
+
+    worker.onmessage = function(e) {
+      const msg = e.data;
+
+      switch (msg.type) {
+        case 'html':
+          // Worker built HTML, porthole displays it
+          document.getElementById('root').innerHTML = msg.payload;
+          break;
+
+        case 'patch':
+          // Partial update — worker sends element id + new HTML
+          const el = document.getElementById(msg.id);
+          if (el) el.outerHTML = msg.payload;
+          break;
+
+        case 'canvas':
+          // Worker wants to draw — setup handled in primitives.js
+          if (window.drawScene) window.drawScene(msg.payload);
+          break;
+
+        case 'ready':
+          console.log('StudySync worker ready. DB loaded.');
+          break;
+
+        case 'error':
+          console.error('Worker error:', msg.payload);
+          break;
+      }
+    };
+
+    // Forward DOM events to worker
+    document.addEventListener('click', function(e) {
+      const target = e.target.closest('[data-action]');
+      if (!target) return;
+
+      worker.postMessage({
+        type: 'action',
+        action: target.dataset.action,
+        id: target.id,
+        value: target.value || null,
+      });
+    });
+
+    document.addEventListener('input', function(e) {
+      if (!e.target.dataset.bind) return;
+
+      worker.postMessage({
+        type: 'input',
+        bind: e.target.dataset.bind,
+        value: e.target.value,
+        id: e.target.id,
+      });
+    });
+
+    document.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const form = e.target;
+      if (!form.dataset.action) return;
+
+      const data = Object.fromEntries(new FormData(form));
+      worker.postMessage({
+        type: 'submit',
+        action: form.dataset.action,
+        data: data,
+      });
+    });
+  </script>
+  <script src="primitives.js"></script>
+</body>
+</html>
